@@ -84,6 +84,9 @@ func getEXT() {
 }
 
 //go:noescape
+func mAVX2(dst []byte, src [][]byte)
+
+//go:noescape
 func bytesAVX2(dst, src1, src2 []byte)
 
 //go:noescape

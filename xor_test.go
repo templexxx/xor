@@ -83,9 +83,44 @@ func TestMatrix(t *testing.T) {
 			expect[j] ^= src[i][j]
 		}
 	}
-	xorMatrix(dst, src)
+	mAVX2(dst, src)
 	if !bytes.Equal(expect, dst) {
 		t.Fatal("xor fault")
+	}
+}
+
+func BenchmarkNewBytes1K(b *testing.B) {
+	benchmarkNew(b, 2, 1024)
+}
+func BenchmarkNewBytes1400B(b *testing.B) {
+	benchmarkNew(b, 2, 1400)
+}
+func BenchmarkNewBytes16M(b *testing.B) {
+	benchmarkNew(b, 2, 16*1024*1024)
+}
+func BenchmarkNewBytes10x1K(b *testing.B) {
+	benchmarkNew(b, 10, 1024)
+}
+func BenchmarkNewBytes10x1400B(b *testing.B) {
+	benchmarkNew(b, 10, 1400)
+}
+func BenchmarkNewBytes10x16M(b *testing.B) {
+	benchmarkNew(b, 10, 16*1024*1024)
+}
+
+func benchmarkNew(b *testing.B, numSRC, size int) {
+	src := make([][]byte, numSRC)
+	dst := make([]byte, size)
+	for i := 0; i < numSRC; i++ {
+		rand.Seed(int64(i))
+		src[i] = make([]byte, size)
+		fillRandom(src[i])
+	}
+	mAVX2(dst, src)
+	b.SetBytes(int64(size * numSRC))
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		mAVX2(dst, src)
 	}
 }
 

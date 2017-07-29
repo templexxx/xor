@@ -23,7 +23,12 @@ func Bytes(dst, src1, src2 []byte) (err error) {
 	return
 }
 
+var ErrSrcNum = errors.New("xor: num of src must >= 2")
+
 func Matrix(dst []byte, src [][]byte) (err error) {
+	if len(src) < 2 {
+		return ErrSrcNum
+	}
 	err = checkSize(dst, src...)
 	if err != nil {
 		return
