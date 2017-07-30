@@ -3,6 +3,59 @@ package xor
 func init() {
 	getEXT()
 }
+func getEXT() {
+	if hasAVX2() {
+		extension = avx2
+	} else if hasSSE2() {
+		extension = sse2
+	} else {
+		extension = none
+	}
+	return
+}
+
+func xorBytes(dst, src0, src1 []byte) {
+	switch extension {
+	case avx2:
+		bytesAVX2(dst, src0, src1)
+	case sse2:
+		bytesSSE2(dst, src0, src1)
+	default:
+		bytesNoSIMD(dst, src0, src1)
+	}
+}
+
+func bytesAVX2(dst, src0, src1 []byte) {
+	size := len(dst)
+	if size > unitSize {
+		// use non-temporal hint
+		bytesAVX2big(dst, src0, src1)
+	} else {
+		bytesAVX2small(dst, src0, src1)
+	}
+}
+
+//go:noescape
+func bytesAVX2big(dst, src0, src1 []byte)
+
+//go:noescape
+func bytesAVX2small(dst, src0, src1 []byte)
+
+func bytesSSE2(dst, src0, src1 []byte) {
+	size := len(dst)
+	if size > unitSize {
+		// use non-temporal hint
+		bytesSSE2big(dst, src0, src1)
+	} else {
+		bytesSSE2small(dst, src0, src1)
+	}
+}
+
+//go:noescape
+func bytesSSE2big(dst, src0, src1 []byte)
+
+//go:noescape
+func bytesSSE2small(dst, src0, src1 []byte)
 
 func xorMatrix(dst []byte, src [][]byte) {
 	switch extension {
@@ -17,86 +70,35 @@ func xorMatrix(dst []byte, src [][]byte) {
 
 func matrixAVX2(dst []byte, src [][]byte) {
 	size := len(dst)
-	start := 0
-	do := unitSize
-	for start < size {
-		end := start + do
-		if end+do <= size {
-			partAVX2(start, end, dst, src)
-			start = start + do
-		} else {
-			partAVX2(start, size, dst, src)
-			start = size
-		}
+	if size > unitSize {
+		// use non-temporal hint
+		matrixAVX2big(dst, src)
+	} else {
+		matrixAVX2small(dst, src)
 	}
 }
 
-func partAVX2(start, end int, dst []byte, src [][]byte) {
-	bytesAVX2(dst[start:end], src[0][start:end], src[1][start:end])
-	for i := 2; i < len(src); i++ {
-		updateAVX2(dst[start:end], src[i][start:end])
-	}
-}
+//go:noescape
+func matrixAVX2big(dst []byte, src [][]byte)
 
-// TODO bench no split
+//go:noescape
+func matrixAVX2small(dst []byte, src [][]byte)
+
 func matrixSSE2(dst []byte, src [][]byte) {
 	size := len(dst)
-	start := 0
-	do := unitSize
-	for start < size {
-		end := start + do
-		if end <= size {
-			partSSE2(start, end, dst, src)
-			start = start + do
-		} else {
-			partSSE2(start, size, dst, src)
-			start = size
-		}
-	}
-}
-
-func partSSE2(start, end int, dst []byte, src [][]byte) {
-	bytesSSE2(dst[start:end], src[0][start:end], src[1][start:end])
-	for i := 2; i < len(src); i++ {
-		updateSSE2(dst[start:end], src[i][start:end])
-	}
-}
-
-func xorBytes(dst, src1, src2 []byte) {
-	switch extension {
-	case avx2:
-		bytesAVX2(dst, src1, src2)
-	case sse2:
-		bytesSSE2(dst, src1, src2)
-	default:
-		bytesNoSIMD(dst, src1, src2)
-	}
-}
-func getEXT() {
-	if hasAVX2() {
-		extension = avx2
-	} else if hasSSE2() {
-		extension = sse2
+	if size > unitSize {
+		// use non-temporal hint
+		matrixSSE2big(dst, src)
 	} else {
-		extension = none
+		matrixSSE2big(dst, src)
 	}
-	return
 }
 
 //go:noescape
-func mAVX2(dst []byte, src [][]byte)
+func matrixSSE2big(dst []byte, src [][]byte)
 
 //go:noescape
-func bytesAVX2(dst, src1, src2 []byte)
-
-//go:noescape
-func updateAVX2(dst, src []byte)
-
-//go:noescape
-func bytesSSE2(dst, src1, src2 []byte)
-
-//go:noescape
-func updateSSE2(dst, src []byte)
+func matrixSSE2small(dst []byte, src [][]byte)
 
 //go:noescape
 func hasAVX2() bool

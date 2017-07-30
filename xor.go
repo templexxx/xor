@@ -14,12 +14,12 @@ var extension = none
 // split slice for cache-friendly
 const unitSize = 16 * 1024
 
-func Bytes(dst, src1, src2 []byte) (err error) {
-	err = checkSize(dst, src1, src2)
+func Bytes(dst, src0, src1 []byte) (err error) {
+	err = checkSize(dst, src0, src1)
 	if err != nil {
 		return
 	}
-	xorBytes(dst, src1, src2)
+	xorBytes(dst, src0, src1)
 	return
 }
 

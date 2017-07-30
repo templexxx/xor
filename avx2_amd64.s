@@ -1,162 +1,371 @@
 #include "textflag.h"
 
-#define POS R10
+// addr of mem
+#define DST BX
+#define SRC SI
+#define SRC0 TMP4
+#define SRC1 TMP5
 
-// 需要判断两个循环是否结束（1： vect循环完了  2：长度循环完了）
-// 或者可以外部传入，这样简单一点
-// func updateAVX2(dst, src []byte)
-TEXT ·updateAVX2(SB), NOSPLIT, $0
-	MOVQ  dst+0(FP), AX
-	MOVQ  src+24(FP), BX
-	MOVQ  len+8(FP), CX
-	TESTQ $127, CX
-	JNZ   not_aligned    // check if aligned to 128b
+// loop args
+// num of vect
+#define VECT CX
+#define LEN DX
+// pos of matrix
+#define POS R8
+
+// tmp store
+// num of vect or ...
+#define TMP1 R9
+// pos of matrix or ...
+#define TMP2 R10
+// store addr of data/parity or ...
+#define TMP3 R11
+#define TMP4 R12
+#define TMP5 R13
+#define TMP6 R14
+
+
+// func bytesAVX2small(dst, src0, src1 []byte)
+TEXT ·bytesAVX2small(SB), NOSPLIT, $0
+	MOVQ  dst+0(FP), DST
+	MOVQ  src0+24(FP), SRC0
+	MOVQ  src1+48(FP), SRC1
+	MOVQ  len+8(FP), LEN
+	TESTQ $127, LEN
+	JNZ   not_aligned
 
 aligned:
 	MOVQ  $0, POS
 
 loop128b:
-	VMOVDQU (AX), Y0    // read dst
-	VMOVDQU 32(AX), Y1
-	VMOVDQU 64(AX), Y2
-	VMOVDQU 96(AX), Y3
-
-	VPXOR   (BX), Y0, Y0
-	VPXOR   32(BX), Y1, Y1
-	VPXOR   64(BX), Y2, Y2
-	VPXOR   96(BX), Y3, Y3
-
-	VMOVDQU Y0, (AX)    // update dst
-	VMOVDQU Y1, 32(AX)
-	VMOVDQU Y2, 64(AX)
-	VMOVDQU Y3, 96(AX)
-
+	VMOVDQU (SRC0)(POS*1), Y0
+	VMOVDQU 32(SRC0)(POS*1), Y1
+	VMOVDQU 64(SRC0)(POS*1), Y2
+	VMOVDQU 96(SRC0)(POS*1), Y3
+	VPXOR (SRC1)(POS*1), Y0, Y0
+    VPXOR 32(SRC1)(POS*1), Y1, Y1
+    VPXOR 64(SRC1)(POS*1), Y2, Y2
+    VPXOR 96(SRC1)(POS*1), Y3, Y3
+	VMOVDQU Y0, (DST)(POS*1)
+    VMOVDQU Y1, 32(DST)(POS*1)
+    VMOVDQU Y2, 64(DST)(POS*1)
+    VMOVDQU Y3, 96(DST)(POS*1)
 
 	ADDQ    $128, POS
-	ADDQ    $128, AX
-	ADDQ    $128, BX
-	CMPQ    CX,   POS
+	CMPQ    LEN, POS
 	JNE     loop128b
 	RET
 
 loop_1b:
-	MOVB   (AX), R8
-	MOVB   (BX), R9
-	XORB   R9, R8
-	MOVB   R8, (AX)
-
-	SUBQ   $1, CX
-	ADDQ   $1, AX
-	ADDQ   $1, BX
-	TESTQ  $7, CX
-	JNZ    loop_1b
-
-	CMPQ   CX, $0
-	JE     ret
-	TESTQ  $127, CX
-	JZ     aligned
+	MOVB -1(SRC0)(LEN*1), TMP1
+	MOVB -1(SRC1)(LEN*1), TMP2
+	XORB TMP1, TMP2
+	MOVB TMP2, -1(DST)(LEN*1)
+	SUBQ $1, LEN
+	TESTQ $7, LEN
+	JNZ  loop_1b
+	CMPQ LEN, $0
+	JE   ret
+	TESTQ $127, LEN
+	JZ  aligned
 
 not_aligned:
-	TESTQ   $7, CX   //
+	TESTQ   $7, LEN
 	JNE     loop_1b
-	MOVQ    CX, DX
-	ANDQ    $127, DX  // deal with <128 part
+	MOVQ    LEN, TMP1
+	ANDQ    $127, TMP1
 
 loop_8b:
-	MOVQ   (AX), R11
-	MOVQ   (BX), R12
-	XORQ   R12, R11
-	MOVQ   R11, (AX)
-	ADDQ   $8, AX
-    ADDQ   $8, BX
-	SUBQ   $8, CX
-	SUBQ   $8, DX
-	JNE    loop_8b
+	MOVQ -8(SRC0)(LEN*1), TMP2
+	MOVQ -8(SRC1)(LEN*1), TMP3
+	XORQ TMP2, TMP3
+	MOVQ TMP3, -8(DST)(LEN*1)
+    SUBQ $8, LEN
+    SUBQ $8, TMP1
+    JG   loop_8b
 
-	CMPQ   CX, $128
-	JGE    aligned
-	RET
+    CMPQ  LEN, $128
+    JGE   aligned
+    RET
 
 ret:
 	RET
 
-// func bytesAVX2(dst, src1, src2 []byte)
-TEXT ·bytesAVX2(SB), NOSPLIT, $0
-	MOVQ  dst+0(FP), AX
-	MOVQ  src1+24(FP), BX
-	MOVQ  src2+48(FP), R13
-	MOVQ  len+8(FP), CX
-	TESTQ $127, CX
-	JNZ   not_aligned    // check if aligned to 128b
+// func bytesAVX2big(dst, src0, src1 []byte)
+TEXT ·bytesAVX2big(SB), NOSPLIT, $0
+	MOVQ  dst+0(FP), DST
+	MOVQ  src0+24(FP), SRC0
+	MOVQ  src1+48(FP), SRC1
+	MOVQ  len+8(FP), LEN
+	TESTQ $127, LEN
+	JNZ   not_aligned
 
 aligned:
 	MOVQ  $0, POS
 
 loop128b:
-	VMOVDQU (R13), Y0    // read src2
-	// TODO find way to get index
-	// maybe use macro like sha1block_amd64.s or memmove.s
-	VMOVDQU 32(R13), Y1
-	VMOVDQU 64(R13), Y2
-	VMOVDQU 96(R13), Y3
-
-	VPXOR   (BX), Y0, Y0
-	VPXOR   32(BX), Y1, Y1
-	VPXOR   64(BX), Y2, Y2
-	VPXOR   96(BX), Y3, Y3
-
-	VMOVDQU Y0, (AX)    // update dst
-	VMOVDQU Y1, 32(AX)
-	VMOVDQU Y2, 64(AX)
-	VMOVDQU Y3, 96(AX)
+	VMOVDQU (SRC0)(POS*1), Y0
+	VMOVDQU 32(SRC0)(POS*1), Y1
+	VMOVDQU 64(SRC0)(POS*1), Y2
+	VMOVDQU 96(SRC0)(POS*1), Y3
+	VPXOR (SRC1)(POS*1), Y0, Y0
+    VPXOR 32(SRC1)(POS*1), Y1, Y1
+    VPXOR 64(SRC1)(POS*1), Y2, Y2
+    VPXOR 96(SRC1)(POS*1), Y3, Y3
+	LONG $0xe77da1c4; WORD $0x0304
+    LONG $0xe77da1c4; WORD $0x034c; BYTE $0x20
+   	LONG $0xe77da1c4; WORD $0x0354; BYTE $0x40
+   	LONG $0xe77da1c4; WORD $0x035c; BYTE $0x60
 
 	ADDQ    $128, POS
-	ADDQ    $128, AX
-	ADDQ    $128, BX
-	ADDQ    $128, R13
-	CMPQ    CX,   POS
+	CMPQ    LEN, POS
+	JNE     loop128b
+	SFENCE
+	RET
+
+loop_1b:
+	MOVB -1(SRC0)(LEN*1), TMP1
+	MOVB -1(SRC1)(LEN*1), TMP2
+	XORB TMP1, TMP2
+	MOVB TMP2, -1(DST)(LEN*1)
+	SUBQ $1, LEN
+	TESTQ $7, LEN
+	JNZ  loop_1b
+	CMPQ LEN, $0
+	JE   ret
+	TESTQ $127, LEN
+	JZ  aligned
+
+not_aligned:
+	TESTQ   $7, LEN
+	JNE     loop_1b
+	MOVQ    LEN, TMP1
+	ANDQ    $127, TMP1
+
+loop_8b:
+	MOVQ -8(SRC0)(LEN*1), TMP2
+	MOVQ -8(SRC1)(LEN*1), TMP3
+	XORQ TMP2, TMP3
+	MOVQ TMP3, -8(DST)(LEN*1)
+    SUBQ $8, LEN
+    SUBQ $8, TMP1
+    JG   loop_8b
+
+    CMPQ  LEN, $128
+    JGE   aligned
+    RET
+
+ret:
+	RET
+
+// func matrixAVX2small(dst []byte, src [][]byte)
+TEXT ·matrixAVX2small(SB), NOSPLIT, $0
+	MOVQ  dst+0(FP), DST
+	MOVQ  src+24(FP), SRC
+	MOVQ  vec+32(FP), VECT
+	MOVQ  len+8(FP), LEN
+	TESTQ $127, LEN
+	JNZ   not_aligned
+
+aligned:
+	MOVQ  $0, POS
+
+loop128b:
+	MOVQ VECT, TMP1
+	SUBQ $2, TMP1
+	MOVQ $0, TMP2
+	MOVQ (SRC)(TMP2*1), TMP3
+	MOVQ  TMP3, TMP4
+	VMOVDQU (TMP3)(POS*1), Y0
+	VMOVDQU 32(TMP4)(POS*1), Y1
+	VMOVDQU 64(TMP3)(POS*1), Y2
+	VMOVDQU 96(TMP4)(POS*1), Y3
+
+next_vect:
+	ADDQ $24, TMP2
+	MOVQ (SRC)(TMP2*1), TMP3
+	MOVQ TMP3, TMP4
+	VMOVDQU (TMP3)(POS*1), Y4
+    VMOVDQU 32(TMP4)(POS*1), Y5
+   	VMOVDQU 64(TMP3)(POS*1), Y6
+   	VMOVDQU 96(TMP4)(POS*1), Y7
+   	VPXOR Y4, Y0, Y0
+   	VPXOR Y5, Y1, Y1
+   	VPXOR Y6, Y2, Y2
+   	VPXOR Y7, Y3, Y3
+   	SUBQ    $1, TMP1
+   	JGE     next_vect
+
+	VMOVDQU Y0, (DST)(POS*1)
+   VMOVDQU Y1, 32(DST)(POS*1)
+   VMOVDQU Y2, 64(DST)(POS*1)
+   VMOVDQU Y3, 96(DST)(POS*1)
+
+	ADDQ    $128, POS
+	CMPQ    LEN, POS
 	JNE     loop128b
 	RET
 
 loop_1b:
-	MOVB   (R13), R8
-	MOVB   (BX), R9
-	XORB   R9, R8
-	MOVB   R8, (AX)
+	MOVQ VECT, TMP1
+	MOVQ $0, TMP2
+	MOVQ (SRC)(TMP2*1), TMP3
+	SUBQ $2, TMP1
+	MOVB -1(TMP3)(LEN*1), TMP5
 
-	SUBQ   $1, CX
-	ADDQ   $1, AX
-	ADDQ   $1, BX
-	ADDQ   $1, R13
-	TESTQ  $7, CX
-	JNZ    loop_1b
+next_vect_1b:
+	ADDQ $24, TMP2
+	MOVQ (SRC)(TMP2*1), TMP3
+	MOVB -1(TMP3)(LEN*1), TMP6
+	XORB TMP6, TMP5
+	SUBQ $1, TMP1
+	JGE  next_vect_1b
 
-	CMPQ   CX, $0
-	JE     ret
-	TESTQ  $127, CX
-	JZ     aligned
+	MOVB TMP5, -1(DST)(LEN*1)
+	SUBQ $1, LEN
+	TESTQ $7, LEN
+	JNZ loop_1b
+
+	CMPQ LEN, $0
+	JE  ret
+	TESTQ $127, LEN
+	JZ  aligned
 
 not_aligned:
-	TESTQ   $7, CX   //
+	TESTQ   $7, LEN
 	JNE     loop_1b
-	MOVQ    CX, DX
-	ANDQ    $127, DX  // deal with <128 part
+	MOVQ    LEN, TMP4
+	ANDQ    $127, TMP4
 
 loop_8b:
-	MOVQ   (R13), R11
-	MOVQ   (BX), R12
-	XORQ   R12, R11
-	MOVQ   R11, (AX)
-	ADDQ   $8, AX
-    ADDQ   $8, BX
-    ADDQ   $8, R13
-	SUBQ   $8, CX
-	SUBQ   $8, DX
-	JNE    loop_8b
+	MOVQ VECT, TMP1
+	MOVQ $0, TMP2
+	MOVQ (SRC)(TMP2*1), TMP3
+	SUBQ $2, TMP1
+	MOVQ  -8(TMP3)(LEN*1), TMP5
 
-	CMPQ   CX, $128
-	JGE    aligned
+next_vect_8b:
+	ADDQ $24, TMP2
+    MOVQ (SRC)(TMP2*1), TMP3
+    MOVQ -8(TMP3)(LEN*1), TMP6
+    XORQ TMP6, TMP5
+    SUBQ    $1, TMP1
+    JGE     next_vect_8b
+
+    MOVQ TMP5, -8(DST)(LEN*1)
+    SUBQ $8, LEN
+    SUBQ $8, TMP4
+    JG   loop_8b
+
+    CMPQ  LEN, $128
+    JGE   aligned
+    RET
+
+ret:
 	RET
+
+// func matrixAVX2big(dst []byte, src [][]byte)
+TEXT ·matrixAVX2big(SB), NOSPLIT, $0
+	MOVQ  dst+0(FP), DST
+	MOVQ  src+24(FP), SRC
+	MOVQ  vec+32(FP), VECT
+	MOVQ  len+8(FP), LEN
+	TESTQ $127, LEN
+	JNZ   not_aligned
+
+aligned:
+	MOVQ  $0, POS
+
+loop128b:
+	MOVQ VECT, TMP1
+	SUBQ $2, TMP1
+	MOVQ $0, TMP2
+	MOVQ (SRC)(TMP2*1), TMP3
+	MOVQ  TMP3, TMP4
+	VMOVDQU (TMP3)(POS*1), Y0
+	VMOVDQU 32(TMP4)(POS*1), Y1
+	VMOVDQU 64(TMP3)(POS*1), Y2
+	VMOVDQU 96(TMP4)(POS*1), Y3
+
+next_vect:
+	ADDQ $24, TMP2
+	MOVQ (SRC)(TMP2*1), TMP3
+	MOVQ TMP3, TMP4
+	VMOVDQU (TMP3)(POS*1), Y4
+    VMOVDQU 32(TMP4)(POS*1), Y5
+   	VMOVDQU 64(TMP3)(POS*1), Y6
+   	VMOVDQU 96(TMP4)(POS*1), Y7
+   	VPXOR Y4, Y0, Y0
+   	VPXOR Y5, Y1, Y1
+   	VPXOR Y6, Y2, Y2
+   	VPXOR Y7, Y3, Y3
+   	SUBQ    $1, TMP1
+   	JGE     next_vect
+
+	LONG $0xe77da1c4; WORD $0x0304      // VMOVNTDQ  go1.8 has
+    LONG $0xe77da1c4; WORD $0x034c; BYTE $0x20
+   	LONG $0xe77da1c4; WORD $0x0354; BYTE $0x40
+   	LONG $0xe77da1c4; WORD $0x035c; BYTE $0x60
+
+	ADDQ    $128, POS
+	CMPQ    LEN, POS
+	JNE     loop128b
+	RET
+
+loop_1b:
+	MOVQ VECT, TMP1
+	MOVQ $0, TMP2
+	MOVQ (SRC)(TMP2*1), TMP3
+	SUBQ $2, TMP1
+	MOVB -1(TMP3)(LEN*1), TMP5
+
+next_vect_1b:
+	ADDQ $24, TMP2
+	MOVQ (SRC)(TMP2*1), TMP3
+	MOVB -1(TMP3)(LEN*1), TMP6
+	XORB TMP6, TMP5
+	SUBQ $1, TMP1
+	JGE  next_vect_1b
+
+	MOVB TMP5, -1(DST)(LEN*1)
+	SUBQ $1, LEN
+	TESTQ $7, LEN
+	JNZ loop_1b
+
+	CMPQ LEN, $0
+	JE  ret
+	TESTQ $127, LEN
+	JZ  aligned
+
+not_aligned:
+	TESTQ   $7, LEN
+	JNE     loop_1b
+	MOVQ    LEN, TMP4
+	ANDQ    $127, TMP4
+
+loop_8b:
+	MOVQ VECT, TMP1
+	MOVQ $0, TMP2
+	MOVQ (SRC)(TMP2*1), TMP3
+	SUBQ $2, TMP1
+	MOVQ  -8(TMP3)(LEN*1), TMP5
+
+next_vect_8b:
+	ADDQ $24, TMP2
+    MOVQ (SRC)(TMP2*1), TMP3
+    MOVQ -8(TMP3)(LEN*1), TMP6
+    XORQ TMP6, TMP5
+    SUBQ    $1, TMP1
+    JGE     next_vect_8b
+
+    MOVQ TMP5, -8(DST)(LEN*1)
+    SUBQ $8, LEN
+    SUBQ $8, TMP4
+    JG   loop_8b
+
+    CMPQ  LEN, $128
+    JGE   aligned
+    RET
 
 ret:
 	RET
@@ -165,8 +374,8 @@ TEXT ·hasAVX2(SB), NOSPLIT, $0
 	XORQ AX, AX
 	XORQ CX, CX
 	ADDL $7, AX
-	CPUID              // when CPUID excutes with AX set to 07H, feature info is ret in BX
-	SHRQ $5, BX        // AVX -> BX[5] = 1
+	CPUID
+	SHRQ $5, BX
 	ANDQ $1, BX
 	MOVB BX, ret+0(FP)
 	RET

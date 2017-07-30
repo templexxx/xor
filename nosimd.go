@@ -42,6 +42,7 @@ func matrixNoSIMD(dst []byte, src [][]byte) {
 	}
 }
 
+// split vect will improve performance with big data by reducing cache pollution
 func partNoSIMD(start, end int, dst []byte, src [][]byte) {
 	bytesNoSIMD(dst[start:end], src[0][start:end], src[1][start:end])
 	for i := 2; i < len(src); i++ {

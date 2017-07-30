@@ -2,10 +2,10 @@
 
 package xor
 
-func bytes(dst, src1, src2 []byte) {
-	bytesNoSIMD(dst, src1, src2)
+func xorBytes(dst, src0, src1 []byte) {
+	bytesNoSIMD(dst, src0, src1)
 }
 
-func matrix(dst, src []byte) {
+func xorMatrix(dst []byte, src [][]byte) {
 	matrixNoSIMD(dst, src)
 }

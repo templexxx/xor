@@ -1,169 +1,384 @@
 #include "textflag.h"
 
-#define POS R10
+// addr of mem
+#define DST BX
+#define SRC SI
+#define SRC0 TMP4
+#define SRC1 TMP5
 
-// 需要判断两个循环是否结束（1： vect循环完了  2：长度循环完了）
-// 或者可以外部传入，这样简单一点
-// func updateSSE2(dst, src []byte)
-TEXT ·updateSSE2(SB), NOSPLIT, $0
-	MOVQ  dst+0(FP), AX
-	MOVQ  src+24(FP), BX
-	MOVQ  len+8(FP), CX
-	TESTQ $63, CX
-	JNZ   not_aligned    // check if aligned to 64b
+// loop args
+// num of vect
+#define VECT CX
+#define LEN DX
+// pos of matrix
+#define POS R8
+
+// tmp store
+// num of vect or ...
+#define TMP1 R9
+// pos of matrix or ...
+#define TMP2 R10
+// store addr of data/parity or ...
+#define TMP3 R11
+#define TMP4 R12
+#define TMP5 R13
+#define TMP6 R14
+
+
+// func bytesSSE2small(dst, src0, src1 []byte)
+TEXT ·bytesSSE2small(SB), NOSPLIT, $0
+	MOVQ  dst+0(FP), DST
+	MOVQ  src0+24(FP), SRC0
+	MOVQ  src1+48(FP), SRC1
+	MOVQ  len+8(FP), LEN
+	TESTQ $63, LEN
+	JNZ   not_aligned
 
 aligned:
 	MOVQ  $0, POS
 
 loop64b:
-	MOVOU (AX), X0    // read dst
-	MOVOU 16(AX), X1
-	MOVOU 32(AX), X2
-	MOVOU 48(AX), X3
+	MOVOU (SRC0)(POS*1), X0
+	MOVOU 16(SRC0)(POS*1), X1
+	MOVOU 32(SRC0)(POS*1), X2
+	MOVOU 48(SRC0)(POS*1), X3
 
-	MOVOU  (BX), X4
-	PXOR   X4, X0
-	MOVOU  16(BX), X5
-	PXOR   X5, X1
-	MOVOU  32(BX), X6
-	PXOR   X6, X2
-	MOVOU  48(BX), X7
-	PXOR   X7, X3
+	MOVOU (SRC1)(POS*1), X4
+    MOVOU 16(SRC1)(POS*1), X5
+    MOVOU 32(SRC1)(POS*1), X6
+    MOVOU 48(SRC1)(POS*1), X7
 
-	MOVOU X0, (AX)    // update dst
-	MOVOU X1, 16(AX)
-	MOVOU X2, 32(AX)
-	MOVOU X3, 48(AX)
+	PXOR X4, X0
+    PXOR X5, X1
+    PXOR X6, X2
+    PXOR X7, X3
 
+	MOVOU X0, (DST)(POS*1)
+    MOVOU X1, 16(DST)(POS*1)
+    MOVOU X2, 32(DST)(POS*1)
+    MOVOU X3, 48(DST)(POS*1)
 
 	ADDQ    $64, POS
-	ADDQ    $64, AX
-	ADDQ    $64, BX
-	CMPQ    CX,   POS
+	CMPQ    LEN, POS
 	JNE     loop64b
 	RET
 
 loop_1b:
-	MOVB   (AX), R8
-	MOVB   (BX), R9
-	XORB   R9, R8
-	MOVB   R8, (AX)
-
-	SUBQ   $1, CX
-	ADDQ   $1, AX
-	ADDQ   $1, BX
-	TESTQ  $7, CX
-	JNZ    loop_1b
-
-	CMPQ   CX, $0
-	JE     ret
-	TESTQ  $63, CX
-	JZ     aligned
+	MOVB -1(SRC0)(LEN*1), TMP1
+	MOVB -1(SRC1)(LEN*1), TMP2
+	XORB TMP1, TMP2
+	MOVB TMP2, -1(DST)(LEN*1)
+	SUBQ $1, LEN
+	TESTQ $7, LEN
+	JNZ  loop_1b
+	CMPQ LEN, $0
+	JE   ret
+	TESTQ $63, LEN
+	JZ  aligned
 
 not_aligned:
-	TESTQ   $7, CX   //
+	TESTQ   $7, LEN
 	JNE     loop_1b
-	MOVQ    CX, DX
-	ANDQ    $63, DX  // deal with <64 part
+	MOVQ    LEN, TMP1
+	ANDQ    $63, TMP1
 
 loop_8b:
-	MOVQ   (AX), R11
-	MOVQ   (BX), R12
-	XORQ   R12, R11
-	MOVQ   R11, (AX)
-	ADDQ   $8, AX
-    ADDQ   $8, BX
-	SUBQ   $8, CX
-	SUBQ   $8, DX
-	JNE    loop_8b
+	MOVQ -8(SRC0)(LEN*1), TMP2
+	MOVQ -8(SRC1)(LEN*1), TMP3
+	XORQ TMP2, TMP3
+	MOVQ TMP3, -8(DST)(LEN*1)
+    SUBQ $8, LEN
+    SUBQ $8, TMP1
+    JG   loop_8b
 
-	CMPQ   CX, $64
-	JGE    aligned
-	RET
+    CMPQ  LEN, $64
+    JGE   aligned
+    RET
 
 ret:
 	RET
 
-// func bytesSSE2(dst, src1, src2 []byte)
-TEXT ·bytesSSE2(SB), NOSPLIT, $0
-	MOVQ  dst+0(FP), AX
-	MOVQ  src1+24(FP), BX
-	MOVQ  src2+48(FP), R13
-	MOVQ  len+8(FP), CX
-	TESTQ $63, CX
-	JNZ   not_aligned    // check if aligned to 64b
+// func bytesSSE2big(dst, src0, src1 []byte)
+TEXT ·bytesSSE2big(SB), NOSPLIT, $0
+	MOVQ  dst+0(FP), DST
+	MOVQ  src0+24(FP), SRC0
+	MOVQ  src1+48(FP), SRC1
+	MOVQ  len+8(FP), LEN
+	TESTQ $63, LEN
+	JNZ   not_aligned
 
 aligned:
 	MOVQ  $0, POS
 
 loop64b:
-	MOVOU (R13), X0    // read src2
-	MOVOU 16(R13), X1
-	MOVOU 32(R13), X2
-	MOVOU 48(R13), X3
+	MOVOU (SRC0)(POS*1), X0
+	MOVOU 16(SRC0)(POS*1), X1
+	MOVOU 32(SRC0)(POS*1), X2
+	MOVOU 48(SRC0)(POS*1), X3
 
-	MOVOU  (BX), X4
-	PXOR   X4, X0
-	MOVOU  16(BX), X5
-	PXOR   X5, X1
-	MOVOU  32(BX), X6
-	PXOR   X6, X2
-	MOVOU  48(BX), X7
-	PXOR   X7, X3
+	MOVOU (SRC1)(POS*1), X4
+    MOVOU 16(SRC1)(POS*1), X5
+    MOVOU 32(SRC1)(POS*1), X6
+    MOVOU 48(SRC1)(POS*1), X7
 
-	MOVOU X0, (AX)    // update dst
-	MOVOU X1, 16(AX)
-	MOVOU X2, 32(AX)
-	MOVOU X3, 48(AX)
+	PXOR X4, X0
+    PXOR X5, X1
+    PXOR X6, X2
+    PXOR X7, X3
 
+	LONG $0xe70f4266; WORD $0x0304              // MOVNTDQ
+    LONG $0xe70f4266; WORD $0x034c; BYTE $0x10
+    LONG $0xe70f4266; WORD $0x0354; BYTE $0x20
+    LONG $0xe70f4266; WORD $0x035c; BYTE $0x30
 
 	ADDQ    $64, POS
-	ADDQ    $64, AX
-	ADDQ    $64, BX
-	ADDQ    $64, R13
-	CMPQ    CX,   POS
+	CMPQ    LEN, POS
 	JNE     loop64b
 	RET
 
 loop_1b:
-	MOVB   (R13), R8
-	MOVB   (BX), R9
-	XORB   R9, R8
-	MOVB   R8, (AX)
-
-	SUBQ   $1, CX
-	ADDQ   $1, AX
-	ADDQ   $1, BX
-	ADDQ   $1, R13
-	TESTQ  $7, CX
-	JNZ    loop_1b
-
-	CMPQ   CX, $0
-	JE     ret
-	TESTQ  $63, CX
-	JZ     aligned
+	MOVB -1(SRC0)(LEN*1), TMP1
+	MOVB -1(SRC1)(LEN*1), TMP2
+	XORB TMP1, TMP2
+	MOVB TMP2, -1(DST)(LEN*1)
+	SUBQ $1, LEN
+	TESTQ $7, LEN
+	JNZ  loop_1b
+	CMPQ LEN, $0
+	JE   ret
+	TESTQ $63, LEN
+	JZ  aligned
 
 not_aligned:
-	TESTQ   $7, CX   //
+	TESTQ   $7, LEN
 	JNE     loop_1b
-	MOVQ    CX, DX
-	ANDQ    $63, DX  // deal with <64 part
+	MOVQ    LEN, TMP1
+	ANDQ    $63, TMP1
 
 loop_8b:
-	MOVQ   (R13), R11
-	MOVQ   (BX), R12
-	XORQ   R12, R11
-	MOVQ   R11, (AX)
-	ADDQ   $8, AX
-    ADDQ   $8, BX
-    ADDQ   $8, R13
-	SUBQ   $8, CX
-	SUBQ   $8, DX
-	JNE    loop_8b
+	MOVQ -8(SRC0)(LEN*1), TMP2
+	MOVQ -8(SRC1)(LEN*1), TMP3
+	XORQ TMP2, TMP3
+	MOVQ TMP3, -8(DST)(LEN*1)
+    SUBQ $8, LEN
+    SUBQ $8, TMP1
+    JG   loop_8b
 
-	CMPQ   CX, $64
-	JGE    aligned
+    CMPQ  LEN, $64
+    JGE   aligned
+    RET
+
+ret:
 	RET
+
+// func matrixSSE2small(dst []byte, src [][]byte)
+TEXT ·matrixSSE2small(SB), NOSPLIT, $0
+	MOVQ  dst+0(FP), DST
+	MOVQ  src+24(FP), SRC
+	MOVQ  vec+32(FP), VECT
+	MOVQ  len+8(FP), LEN
+	TESTQ $63, LEN
+	JNZ   not_aligned
+
+aligned:
+	MOVQ  $0, POS
+
+loop64b:
+	MOVQ VECT, TMP1
+	SUBQ $2, TMP1
+	MOVQ $0, TMP2
+	MOVQ (SRC)(TMP2*1), TMP3
+	MOVQ  TMP3, TMP4
+	MOVOU (TMP3)(POS*1), X0
+	MOVOU 16(TMP4)(POS*1), X1
+	MOVOU 32(TMP3)(POS*1), X2
+	MOVOU 48(TMP4)(POS*1), X3
+
+next_vect:
+	ADDQ $24, TMP2
+	MOVQ (SRC)(TMP2*1), TMP3
+	MOVQ TMP3, TMP4
+	MOVOU (TMP3)(POS*1), X4
+    MOVOU 16(TMP4)(POS*1), X5
+   	MOVOU 32(TMP3)(POS*1), X6
+   	MOVOU 48(TMP4)(POS*1), X7
+   	PXOR X4, X0
+   	PXOR X5, X1
+   	PXOR X6, X2
+   	PXOR X7, X3
+   	SUBQ    $1, TMP1
+   	JGE     next_vect
+
+	MOVOU X0, (DST)(POS*1)
+   MOVOU X1, 16(DST)(POS*1)
+   MOVOU X2, 32(DST)(POS*1)
+   MOVOU X3, 48(DST)(POS*1)
+
+	ADDQ    $64, POS
+	CMPQ    LEN, POS
+	JNE     loop64b
+	RET
+
+loop_1b:
+	MOVQ VECT, TMP1
+	MOVQ $0, TMP2
+	MOVQ (SRC)(TMP2*1), TMP3
+	SUBQ $2, TMP1
+	MOVB -1(TMP3)(LEN*1), TMP5
+
+next_vect_1b:
+	ADDQ $24, TMP2
+	MOVQ (SRC)(TMP2*1), TMP3
+	MOVB -1(TMP3)(LEN*1), TMP6
+	XORB TMP6, TMP5
+	SUBQ $1, TMP1
+	JGE  next_vect_1b
+
+	MOVB TMP5, -1(DST)(LEN*1)
+	SUBQ $1, LEN
+	TESTQ $7, LEN
+	JNZ loop_1b
+
+	CMPQ LEN, $0
+	JE  ret
+	TESTQ $63, LEN
+	JZ  aligned
+
+not_aligned:
+	TESTQ   $7, LEN
+	JNE     loop_1b
+	MOVQ    LEN, TMP4
+	ANDQ    $63, TMP4
+
+loop_8b:
+	MOVQ VECT, TMP1
+	MOVQ $0, TMP2
+	MOVQ (SRC)(TMP2*1), TMP3
+	SUBQ $2, TMP1
+	MOVQ  -8(TMP3)(LEN*1), TMP5
+
+next_vect_8b:
+	ADDQ $24, TMP2
+    MOVQ (SRC)(TMP2*1), TMP3
+    MOVQ -8(TMP3)(LEN*1), TMP6
+    XORQ TMP6, TMP5
+    SUBQ    $1, TMP1
+    JGE     next_vect_8b
+
+    MOVQ TMP5, -8(DST)(LEN*1)
+    SUBQ $8, LEN
+    SUBQ $8, TMP4
+    JG   loop_8b
+
+    CMPQ  LEN, $64
+    JGE   aligned
+    RET
+
+ret:
+	RET
+
+// func matrixSSE2big(dst []byte, src [][]byte)
+TEXT ·matrixSSE2big(SB), NOSPLIT, $0
+	MOVQ  dst+0(FP), DST
+	MOVQ  src+24(FP), SRC
+	MOVQ  vec+32(FP), VECT
+	MOVQ  len+8(FP), LEN
+	TESTQ $63, LEN
+	JNZ   not_aligned
+
+aligned:
+	MOVQ  $0, POS
+
+loop64b:
+	MOVQ VECT, TMP1
+	SUBQ $2, TMP1
+	MOVQ $0, TMP2
+	MOVQ (SRC)(TMP2*1), TMP3
+	MOVQ  TMP3, TMP4
+	MOVOU (TMP3)(POS*1), X0
+	MOVOU 16(TMP4)(POS*1), X1
+	MOVOU 32(TMP3)(POS*1), X2
+	MOVOU 48(TMP4)(POS*1), X3
+
+next_vect:
+	ADDQ $24, TMP2
+	MOVQ (SRC)(TMP2*1), TMP3
+	MOVQ TMP3, TMP4
+	MOVOU (TMP3)(POS*1), X4
+    MOVOU 16(TMP4)(POS*1), X5
+   	MOVOU 32(TMP3)(POS*1), X6
+   	MOVOU 48(TMP4)(POS*1), X7
+   	PXOR X4, X0
+   	PXOR X5, X1
+   	PXOR X6, X2
+   	PXOR X7, X3
+   	SUBQ    $1, TMP1
+   	JGE     next_vect
+
+	LONG $0xe70f4266; WORD $0x0304
+    LONG $0xe70f4266; WORD $0x034c; BYTE $0x10
+    LONG $0xe70f4266; WORD $0x0354; BYTE $0x20
+    LONG $0xe70f4266; WORD $0x035c; BYTE $0x30
+
+	ADDQ    $64, POS
+	CMPQ    LEN, POS
+	JNE     loop64b
+	RET
+
+loop_1b:
+	MOVQ VECT, TMP1
+	MOVQ $0, TMP2
+	MOVQ (SRC)(TMP2*1), TMP3
+	SUBQ $2, TMP1
+	MOVB -1(TMP3)(LEN*1), TMP5
+
+next_vect_1b:
+	ADDQ $24, TMP2
+	MOVQ (SRC)(TMP2*1), TMP3
+	MOVB -1(TMP3)(LEN*1), TMP6
+	XORB TMP6, TMP5
+	SUBQ $1, TMP1
+	JGE  next_vect_1b
+
+	MOVB TMP5, -1(DST)(LEN*1)
+	SUBQ $1, LEN
+	TESTQ $7, LEN
+	JNZ loop_1b
+
+	CMPQ LEN, $0
+	JE  ret
+	TESTQ $63, LEN
+	JZ  aligned
+
+not_aligned:
+	TESTQ   $7, LEN
+	JNE     loop_1b
+	MOVQ    LEN, TMP4
+	ANDQ    $63, TMP4
+
+loop_8b:
+	MOVQ VECT, TMP1
+	MOVQ $0, TMP2
+	MOVQ (SRC)(TMP2*1), TMP3
+	SUBQ $2, TMP1
+	MOVQ  -8(TMP3)(LEN*1), TMP5
+
+next_vect_8b:
+	ADDQ $24, TMP2
+    MOVQ (SRC)(TMP2*1), TMP3
+    MOVQ -8(TMP3)(LEN*1), TMP6
+    XORQ TMP6, TMP5
+    SUBQ    $1, TMP1
+    JGE     next_vect_8b
+
+    MOVQ TMP5, -8(DST)(LEN*1)
+    SUBQ $8, LEN
+    SUBQ $8, TMP4
+    JG   loop_8b
+
+    CMPQ  LEN, $64
+    JGE   aligned
+    RET
 
 ret:
 	RET
@@ -176,3 +391,4 @@ TEXT ·hasSSE2(SB), NOSPLIT, $0
 	ANDQ $1, DX
 	MOVB DX, ret+0(FP)
 	RET
+

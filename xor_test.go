@@ -7,41 +7,63 @@ import (
 )
 
 func TestVerifyBytesNoSIMD(t *testing.T) {
-	dst := make([]byte, 10)
-	src1 := []byte{0, 4, 22, 3, 45, 7, 8, 9, 10, 11}
-	src2 := []byte{9, 4, 221, 32, 145, 17, 18, 19, 110, 117}
-	for i := 0; i < 10; i++ {
-		dst[i] = src1[i] ^ src2[i]
+	for i := 1; i <= unitSize+16+2; i++ {
+		if !verifyBytesNoSIMD(i) {
+			t.Fatal("xor fault ", "size:", i)
+		}
 	}
-	expect := []byte{9, 0, 203, 35, 188, 22, 26, 26, 100, 126}
-	bytesNoSIMD(dst, src1, src2)
-	if !bytes.Equal(expect, dst) {
-		t.Fatal("xor fault")
+}
+
+func verifyBytesNoSIMD(size int) bool {
+	dst := make([]byte, size)
+	src0 := make([]byte, size)
+	src1 := make([]byte, size)
+	expect := make([]byte, size)
+	rand.Seed(7)
+	fillRandom(src0)
+	rand.Seed(8)
+	fillRandom(src1)
+	for i := 0; i < size; i++ {
+		expect[i] = src0[i] ^ src1[i]
 	}
+	xorBytes(dst, src0, src1)
+	return bytes.Equal(expect, dst)
 }
 
 func TestVerifyBytes(t *testing.T) {
-	size := 9999
-	dst := make([]byte, size)
-	src1 := make([]byte, size)
-	src2 := make([]byte, size)
-	expect := make([]byte, size)
-	rand.Seed(7)
-	fillRandom(src1)
-	rand.Seed(8)
-	fillRandom(src2)
-	for i := 0; i < size; i++ {
-		expect[i] = src1[i] ^ src2[i]
-	}
-	xorBytes(dst, src1, src2)
-	if !bytes.Equal(expect, dst) {
-		t.Fatal("xor fault")
+	for i := 1; i <= unitSize+16+2; i++ {
+		if !verifyBytes(i) {
+			t.Fatal("xor fault ", "size:", i)
+		}
 	}
 }
 
-func TestMatrixNoSIMD(t *testing.T) {
-	size := 9999
-	numSRC := 10
+func verifyBytes(size int) bool {
+	dst := make([]byte, size)
+	src0 := make([]byte, size)
+	src1 := make([]byte, size)
+	expect := make([]byte, size)
+	rand.Seed(7)
+	fillRandom(src0)
+	rand.Seed(8)
+	fillRandom(src1)
+	for i := 0; i < size; i++ {
+		expect[i] = src0[i] ^ src1[i]
+	}
+	xorBytes(dst, src0, src1)
+	return bytes.Equal(expect, dst)
+}
+
+func TestVerifyMatrixNoSIMD(t *testing.T) {
+	for i := 1; i <= unitSize+16+2; i++ {
+		if !verifyMatrixNoSIMD(i) {
+			t.Fatal("xor fault ", "size:", i)
+		}
+	}
+}
+
+func verifyMatrixNoSIMD(size int) bool {
+	numSRC := 3
 	dst := make([]byte, size)
 	expect := make([]byte, size)
 	src := make([][]byte, numSRC)
@@ -59,14 +81,19 @@ func TestMatrixNoSIMD(t *testing.T) {
 		}
 	}
 	matrixNoSIMD(dst, src)
-	if !bytes.Equal(expect, dst) {
-		t.Fatal("xor fault")
+	return bytes.Equal(expect, dst)
+}
+
+func TestVerifyMatrix(t *testing.T) {
+	for i := 1; i <= unitSize+16+2; i++ {
+		if !verifyMatrix(i) {
+			t.Fatal("xor fault ", "size:", i)
+		}
 	}
 }
 
-func TestMatrix(t *testing.T) {
-	size := 9999
-	numSRC := 10
+func verifyMatrix(size int) bool {
+	numSRC := 3
 	dst := make([]byte, size)
 	expect := make([]byte, size)
 	src := make([][]byte, numSRC)
@@ -83,117 +110,22 @@ func TestMatrix(t *testing.T) {
 			expect[j] ^= src[i][j]
 		}
 	}
-	mAVX2(dst, src)
-	if !bytes.Equal(expect, dst) {
-		t.Fatal("xor fault")
-	}
+	xorMatrix(dst, src)
+	return bytes.Equal(expect, dst)
 }
 
-func BenchmarkNewBytes1K(b *testing.B) {
-	benchmarkNew(b, 2, 1024)
-}
-func BenchmarkNewBytes1400B(b *testing.B) {
-	benchmarkNew(b, 2, 1400)
-}
-func BenchmarkNewBytes16M(b *testing.B) {
-	benchmarkNew(b, 2, 16*1024*1024)
-}
-func BenchmarkNewBytes10x1K(b *testing.B) {
-	benchmarkNew(b, 10, 1024)
-}
-func BenchmarkNewBytes10x1400B(b *testing.B) {
-	benchmarkNew(b, 10, 1400)
-}
-func BenchmarkNewBytes10x16M(b *testing.B) {
-	benchmarkNew(b, 10, 16*1024*1024)
-}
-
-func benchmarkNew(b *testing.B, numSRC, size int) {
-	src := make([][]byte, numSRC)
-	dst := make([]byte, size)
-	for i := 0; i < numSRC; i++ {
-		rand.Seed(int64(i))
-		src[i] = make([]byte, size)
-		fillRandom(src[i])
-	}
-	mAVX2(dst, src)
-	b.SetBytes(int64(size * numSRC))
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		mAVX2(dst, src)
-	}
-}
-
-// xor bytes
-func BenchmarkXorBytes1K(b *testing.B) {
-	benchmarkBytes(b, 1024)
-}
-func BenchmarkXorBytes1400B(b *testing.B) {
-	benchmarkBytes(b, 1400)
-}
-func BenchmarkXorBytes16M(b *testing.B) {
-	benchmarkBytes(b, 16*1024*1024)
-}
-
-// xor bytes no simd
-func BenchmarkXorBytesNoSIMD1K(b *testing.B) {
+func BenchmarkBytesNoSIMDx1K(b *testing.B) {
 	benchmarkBytesNoSIMD(b, 1024)
 }
-func BenchmarkXorBytesNoSIMD1400B(b *testing.B) {
+func BenchmarkBytesNoSIMDx1400B(b *testing.B) {
 	benchmarkBytesNoSIMD(b, 1400)
 }
-func BenchmarkXorBytesNoSIMD16M(b *testing.B) {
+func BenchmarkBytesNoSIMDx16K(b *testing.B) {
+	benchmarkBytesNoSIMD(b, 16*1024)
+}
+func BenchmarkBytesNoSIMDx16M(b *testing.B) {
 	benchmarkBytesNoSIMD(b, 16*1024*1024)
 }
-
-// xor matrix
-func BenchmarkXorMatrix10x1K(b *testing.B) {
-	benchmarkMatrix(b, 10, 1024)
-}
-func BenchmarkXorMatrix10x1400B(b *testing.B) {
-	benchmarkMatrix(b, 10, 1400)
-}
-func BenchmarkXorMatrix10x16M(b *testing.B) {
-	benchmarkMatrix(b, 10, 16*1024*1024)
-}
-
-// TODO other size bench test see what happend
-// TODO  why 16MB so slow
-// TODO drop split
-// TODO drop 128 rest
-// xor matrix no simd
-func BenchmarkXorMatrixNoSIMD10x1K(b *testing.B) {
-	benchmarkMatrixNoSIMD(b, 10, 1024)
-}
-func BenchmarkXorMatrixNoSIMD10x1400B(b *testing.B) {
-	benchmarkMatrixNoSIMD(b, 10, 1400)
-}
-func BenchmarkXorMatrixNoSIMD10x16M(b *testing.B) {
-	benchmarkMatrixNoSIMD(b, 10, 16*1024*1024)
-}
-
-func benchmarkBytes(b *testing.B, size int) {
-	src1 := make([]byte, size)
-	src2 := make([]byte, size)
-	dst := make([]byte, size)
-	rand.Seed(int64(0))
-	fillRandom(src1)
-	rand.Seed(int64(1))
-	fillRandom(src2)
-	//src := make([][]byte, 2)
-	//src[0] = src1
-	//src[1] = src2
-	// warm up
-	//matrixAVX2(dst, src)
-	xorBytes(dst, src1, src2)
-	b.SetBytes(int64(size) * 2)
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		//matrixAVX2(dst, src)
-		xorBytes(dst, src1, src2)
-	}
-}
-
 func benchmarkBytesNoSIMD(b *testing.B, size int) {
 	src1 := make([]byte, size)
 	src2 := make([]byte, size)
@@ -202,7 +134,6 @@ func benchmarkBytesNoSIMD(b *testing.B, size int) {
 	fillRandom(src1)
 	rand.Seed(int64(1))
 	fillRandom(src2)
-	// warm up
 	bytesNoSIMD(dst, src1, src2)
 	b.SetBytes(int64(size) * 2)
 	b.ResetTimer()
@@ -211,22 +142,60 @@ func benchmarkBytesNoSIMD(b *testing.B, size int) {
 	}
 }
 
-func benchmarkMatrix(b *testing.B, numSRC, size int) {
-	src := make([][]byte, numSRC)
+func BenchmarkBytesx1K(b *testing.B) {
+	benchmarkBytes(b, 1024)
+}
+func BenchmarkBytesx1400B(b *testing.B) {
+	benchmarkBytes(b, 1400)
+}
+func BenchmarkBytesx16K(b *testing.B) {
+	benchmarkBytes(b, 16*1024)
+}
+func BenchmarkBytesx16M(b *testing.B) {
+	benchmarkBytes(b, 16*1024*1024)
+}
+
+// compare with bytes
+func BenchmarkMatrix2x1K(b *testing.B) {
+	benchmarkMatrix(b, 2, 1024)
+}
+func BenchmarkMatrix2x1400B(b *testing.B) {
+	benchmarkMatrix(b, 2, 1400)
+}
+func BenchmarkMatrix2x16K(b *testing.B) {
+	benchmarkMatrix(b, 2, 16*1024)
+}
+func BenchmarkMatrix2x16M(b *testing.B) {
+	benchmarkMatrix(b, 2, 16*1024*1024)
+}
+func benchmarkBytes(b *testing.B, size int) {
+	src1 := make([]byte, size)
+	src2 := make([]byte, size)
 	dst := make([]byte, size)
-	for i := 0; i < numSRC; i++ {
-		rand.Seed(int64(i))
-		src[i] = make([]byte, size)
-		fillRandom(src[i])
-	}
-	xorMatrix(dst, src)
-	b.SetBytes(int64(size * numSRC))
+	rand.Seed(int64(0))
+	fillRandom(src1)
+	rand.Seed(int64(1))
+	fillRandom(src2)
+	xorBytes(dst, src1, src2)
+	b.SetBytes(int64(size) * 2)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		xorMatrix(dst, src)
+		xorBytes(dst, src1, src2)
 	}
 }
 
+func BenchmarkMatrixNoSIMD5x1K(b *testing.B) {
+	benchmarkMatrixNoSIMD(b, 5, 1024)
+}
+func BenchmarkMatrixNoSIMD5x1400B(b *testing.B) {
+	benchmarkMatrixNoSIMD(b, 5, 1400)
+}
+func BenchmarkMatrixNoSIMD5x16K(b *testing.B) {
+	benchmarkMatrixNoSIMD(b, 5, 16*1024)
+}
+func BenchmarkMatrixNoSIMD5x16M(b *testing.B) {
+	benchmarkMatrixNoSIMD(b, 5, 16*1024*1024)
+}
 func benchmarkMatrixNoSIMD(b *testing.B, numSRC, size int) {
 	src := make([][]byte, numSRC)
 	dst := make([]byte, size)
@@ -240,6 +209,34 @@ func benchmarkMatrixNoSIMD(b *testing.B, numSRC, size int) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		matrixNoSIMD(dst, src)
+	}
+}
+
+func BenchmarkMatrix5x1K(b *testing.B) {
+	benchmarkMatrix(b, 5, 1024)
+}
+func BenchmarkMatrix5x1400B(b *testing.B) {
+	benchmarkMatrix(b, 5, 1400)
+}
+func BenchmarkMatrix5x16K(b *testing.B) {
+	benchmarkMatrix(b, 5, 16*1024)
+}
+func BenchmarkMatrix5x16M(b *testing.B) {
+	benchmarkMatrix(b, 5, 16*1024*1024)
+}
+func benchmarkMatrix(b *testing.B, numSRC, size int) {
+	src := make([][]byte, numSRC)
+	dst := make([]byte, size)
+	for i := 0; i < numSRC; i++ {
+		rand.Seed(int64(i))
+		src[i] = make([]byte, size)
+		fillRandom(src[i])
+	}
+	xorMatrix(dst, src)
+	b.SetBytes(int64(size * numSRC))
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		xorMatrix(dst, src)
 	}
 }
 
