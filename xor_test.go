@@ -30,6 +30,25 @@ func verifyBytesNoSIMD(size int) bool {
 	return bytes.Equal(expect, dst)
 }
 
+func TestVerifyXorAESblock(t *testing.T) {
+	size := 16
+	dst := make([]byte, size)
+	src0 := make([]byte, size)
+	src1 := make([]byte, size)
+	expect := make([]byte, size)
+	rand.Seed(7)
+	fillRandom(src0)
+	rand.Seed(8)
+	fillRandom(src1)
+	for i := 0; i < size; i++ {
+		expect[i] = src0[i] ^ src1[i]
+	}
+	XorAESBlock(dst, src0, src1)
+	if !bytes.Equal(expect, dst) {
+		t.Fatal("xor AES block fault ")
+	}
+}
+
 func TestVerifyBytes(t *testing.T) {
 	for i := 1; i <= unitSize+16+2; i++ {
 		if !verifyBytes(i) {
@@ -114,11 +133,14 @@ func verifyMatrix(size int) bool {
 	return bytes.Equal(expect, dst)
 }
 
+func BenchmarkBytesNoSIMDx16B(b *testing.B) {
+	benchmarkBytesNoSIMD(b, 16)
+}
+func BenchmarkBytesNoSIMDx32B(b *testing.B) {
+	benchmarkBytesNoSIMD(b, 32)
+}
 func BenchmarkBytesNoSIMDx1K(b *testing.B) {
 	benchmarkBytesNoSIMD(b, 1024)
-}
-func BenchmarkBytesNoSIMDx1400B(b *testing.B) {
-	benchmarkBytesNoSIMD(b, 1400)
 }
 func BenchmarkBytesNoSIMDx16K(b *testing.B) {
 	benchmarkBytesNoSIMD(b, 16*1024)
@@ -142,11 +164,33 @@ func benchmarkBytesNoSIMD(b *testing.B, size int) {
 	}
 }
 
+func BenchmarkBytesAESoncex16B(b *testing.B) {
+	benchmarkBytesAESOnce(b)
+}
+func benchmarkBytesAESOnce(b *testing.B) {
+	size := 16
+	src1 := make([]byte, size)
+	src2 := make([]byte, size)
+	dst := make([]byte, size)
+	rand.Seed(int64(0))
+	fillRandom(src1)
+	rand.Seed(int64(1))
+	fillRandom(src2)
+	XorAESBlock(dst, src1, src2)
+	b.SetBytes(int64(size) * 2)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		XorAESBlock(dst, src1, src2)
+	}
+}
+func BenchmarkBytesx16B(b *testing.B) {
+	benchmarkBytes(b, 16)
+}
+func BenchmarkBytesDx32B(b *testing.B) {
+	benchmarkBytes(b, 32)
+}
 func BenchmarkBytesx1K(b *testing.B) {
 	benchmarkBytes(b, 1024)
-}
-func BenchmarkBytesx1400B(b *testing.B) {
-	benchmarkBytes(b, 1400)
 }
 func BenchmarkBytesx16K(b *testing.B) {
 	benchmarkBytes(b, 16*1024)
@@ -158,9 +202,6 @@ func BenchmarkBytesx16M(b *testing.B) {
 // compare with bytes
 func BenchmarkMatrix2x1K(b *testing.B) {
 	benchmarkMatrix(b, 2, 1024)
-}
-func BenchmarkMatrix2x1400B(b *testing.B) {
-	benchmarkMatrix(b, 2, 1400)
 }
 func BenchmarkMatrix2x16K(b *testing.B) {
 	benchmarkMatrix(b, 2, 16*1024)
@@ -187,9 +228,6 @@ func benchmarkBytes(b *testing.B, size int) {
 func BenchmarkMatrixNoSIMD5x1K(b *testing.B) {
 	benchmarkMatrixNoSIMD(b, 5, 1024)
 }
-func BenchmarkMatrixNoSIMD5x1400B(b *testing.B) {
-	benchmarkMatrixNoSIMD(b, 5, 1400)
-}
 func BenchmarkMatrixNoSIMD5x16K(b *testing.B) {
 	benchmarkMatrixNoSIMD(b, 5, 16*1024)
 }
@@ -214,9 +252,6 @@ func benchmarkMatrixNoSIMD(b *testing.B, numSRC, size int) {
 
 func BenchmarkMatrix5x1K(b *testing.B) {
 	benchmarkMatrix(b, 5, 1024)
-}
-func BenchmarkMatrix5x1400B(b *testing.B) {
-	benchmarkMatrix(b, 5, 1400)
 }
 func BenchmarkMatrix5x16K(b *testing.B) {
 	benchmarkMatrix(b, 5, 16*1024)

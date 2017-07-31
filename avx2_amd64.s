@@ -24,6 +24,61 @@
 #define TMP5 R13
 #define TMP6 R14
 
+// func bytesAVX2mini(dst, src0, src1 []byte)
+TEXT ·bytesAVX2mini(SB), NOSPLIT, $0
+	MOVQ  dst+0(FP), DST
+	MOVQ  src0+24(FP), SRC0
+	MOVQ  src1+48(FP), SRC1
+	MOVQ  len+8(FP), LEN
+	TESTQ $31, LEN
+	JNZ   not_aligned
+
+aligned:
+	MOVQ  $0, POS
+
+loop32b:
+	VMOVDQU (SRC0)(POS*1), Y0
+	VPXOR (SRC1)(POS*1), Y0, Y0
+	VMOVDQU Y0, (DST)(POS*1)
+	ADDQ    $32, POS
+	CMPQ    LEN, POS
+	JNE     loop32b
+	RET
+
+loop_1b:
+	MOVB -1(SRC0)(LEN*1), TMP1
+	MOVB -1(SRC1)(LEN*1), TMP2
+	XORB TMP1, TMP2
+	MOVB TMP2, -1(DST)(LEN*1)
+	SUBQ $1, LEN
+	TESTQ $7, LEN
+	JNZ  loop_1b
+	CMPQ LEN, $0
+	JE   ret
+	TESTQ $31, LEN
+	JZ  aligned
+
+not_aligned:
+	TESTQ   $7, LEN
+	JNE     loop_1b
+	MOVQ    LEN, TMP1
+	ANDQ    $31, TMP1
+
+loop_8b:
+	MOVQ -8(SRC0)(LEN*1), TMP2
+	MOVQ -8(SRC1)(LEN*1), TMP3
+	XORQ TMP2, TMP3
+	MOVQ TMP3, -8(DST)(LEN*1)
+    SUBQ $8, LEN
+    SUBQ $8, TMP1
+    JG   loop_8b
+
+    CMPQ  LEN, $32
+    JGE   aligned
+    RET
+
+ret:
+	RET
 
 // func bytesAVX2small(dst, src0, src1 []byte)
 TEXT ·bytesAVX2small(SB), NOSPLIT, $0

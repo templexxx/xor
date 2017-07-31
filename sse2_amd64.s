@@ -24,6 +24,73 @@
 #define TMP5 R13
 #define TMP6 R14
 
+// func bytesSSE2once(dst, src0, src1 []byte)
+TEXT ·bytesSSE2once(SB), NOSPLIT, $0
+	MOVQ  dst+0(FP), DST
+	MOVQ  src0+24(FP), SRC0
+	MOVQ  src1+48(FP), SRC1
+	MOVOU (SRC0), X0
+	MOVOU (SRC1), X4
+	PXOR X4, X0
+	MOVOU X0, (DST)
+	RET
+
+// func bytesSSE2mini(dst, src0, src1 []byte)
+TEXT ·bytesSSE2mini(SB), NOSPLIT, $0
+	MOVQ  dst+0(FP), DST
+	MOVQ  src0+24(FP), SRC0
+	MOVQ  src1+48(FP), SRC1
+	MOVQ  len+8(FP), LEN
+	TESTQ $15, LEN
+	JNZ   not_aligned
+
+aligned:
+	MOVQ  $0, POS
+
+loop16b:
+	MOVOU (SRC0)(POS*1), X0
+	MOVOU (SRC1)(POS*1), X4
+	PXOR X4, X0
+	MOVOU X0, (DST)(POS*1)
+	ADDQ    $16, POS
+	CMPQ    LEN, POS
+	JNE     loop16b
+	RET
+
+loop_1b:
+	MOVB -1(SRC0)(LEN*1), TMP1
+	MOVB -1(SRC1)(LEN*1), TMP2
+	XORB TMP1, TMP2
+	MOVB TMP2, -1(DST)(LEN*1)
+	SUBQ $1, LEN
+	TESTQ $7, LEN
+	JNZ  loop_1b
+	CMPQ LEN, $0
+	JE   ret
+	TESTQ $15, LEN
+	JZ  aligned
+
+not_aligned:
+	TESTQ   $7, LEN
+	JNE     loop_1b
+	MOVQ    LEN, TMP1
+	ANDQ    $15, TMP1
+
+loop_8b:
+	MOVQ -8(SRC0)(LEN*1), TMP2
+	MOVQ -8(SRC1)(LEN*1), TMP3
+	XORQ TMP2, TMP3
+	MOVQ TMP3, -8(DST)(LEN*1)
+    SUBQ $8, LEN
+    SUBQ $8, TMP1
+    JG   loop_8b
+
+    CMPQ  LEN, $16
+    JGE   aligned
+    RET
+
+ret:
+	RET
 
 // func bytesSSE2small(dst, src0, src1 []byte)
 TEXT ·bytesSSE2small(SB), NOSPLIT, $0

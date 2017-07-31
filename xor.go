@@ -1,7 +1,5 @@
 package xor
 
-import "errors"
-
 // SIMD Extensions
 const (
 	none = iota
@@ -14,40 +12,19 @@ var extension = none
 // split slice for cache-friendly
 const unitSize = 16 * 1024
 
-func Bytes(dst, src0, src1 []byte) (err error) {
-	err = checkSize(dst, src0, src1)
-	if err != nil {
-		return
-	}
+// The arguments are assumed to be of equal length && != 0
+func Bytes(dst, src0, src1 []byte) {
 	xorBytes(dst, src0, src1)
-	return
 }
 
-var ErrSrcNum = errors.New("xor: num of src must >= 2")
-
-func Matrix(dst []byte, src [][]byte) (err error) {
-	if len(src) < 2 {
-		return ErrSrcNum
-	}
-	err = checkSize(dst, src...)
-	if err != nil {
-		return
-	}
+// The arguments are assumed to be of equal length && != 0
+// len(src) must >= 2
+func Matrix(dst []byte, src [][]byte) {
 	xorMatrix(dst, src)
-	return
 }
 
-var ErrShardSize = errors.New("xor: shards size equal 0 or not match")
-
-func checkSize(dst []byte, src ...[]byte) (err error) {
-	size := len(dst)
-	if size == 0 {
-		return ErrShardSize
-	}
-	for _, s := range src {
-		if len(s) != size {
-			return ErrShardSize
-		}
-	}
-	return nil
+// src1's len is 16bytes
+// dst >= src0, src0 >= src1
+func XorAESBlock(dst, src0, src1 []byte) {
+	aesBlock(dst, src0, src1)
 }

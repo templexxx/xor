@@ -14,6 +14,10 @@ func getEXT() {
 	return
 }
 
+func aesBlock(dst, src0, src1 []byte) {
+	bytesSSE2once(dst, src0, src1)
+}
+
 func xorBytes(dst, src0, src1 []byte) {
 	switch extension {
 	case avx2:
@@ -27,13 +31,26 @@ func xorBytes(dst, src0, src1 []byte) {
 
 func bytesAVX2(dst, src0, src1 []byte) {
 	size := len(dst)
-	if size > unitSize {
-		// use non-temporal hint
-		bytesAVX2big(dst, src0, src1)
-	} else {
+	if size < 32 {
+		// if has avx2 it must has sse2
+		bytesSSE2mini(dst, src0, src1)
+	} else if size >= 32 && size < 128 {
+		bytesAVX2mini(dst, src0, src1)
+	} else if size >= 128 && size <= unitSize {
 		bytesAVX2small(dst, src0, src1)
+	} else {
+		bytesAVX2big(dst, src0, src1)
 	}
 }
+
+//go:noescape
+func bytesSSE2once(dst, src0, src1 []byte)
+
+//go:noescape
+func bytesSSE2mini(dst, src0, src1 []byte)
+
+//go:noescape
+func bytesAVX2mini(dst, src0, src1 []byte)
 
 //go:noescape
 func bytesAVX2big(dst, src0, src1 []byte)
@@ -43,11 +60,12 @@ func bytesAVX2small(dst, src0, src1 []byte)
 
 func bytesSSE2(dst, src0, src1 []byte) {
 	size := len(dst)
-	if size > unitSize {
-		// use non-temporal hint
-		bytesSSE2big(dst, src0, src1)
-	} else {
+	if size < 64 {
+		bytesSSE2mini(dst, src0, src1)
+	} else if size >= 64 && size <= unitSize {
 		bytesSSE2small(dst, src0, src1)
+	} else {
+		bytesSSE2big(dst, src0, src1)
 	}
 }
 

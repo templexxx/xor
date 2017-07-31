@@ -9,3 +9,7 @@ func xorBytes(dst, src0, src1 []byte) {
 func xorMatrix(dst []byte, src [][]byte) {
 	matrixNoSIMD(dst, src)
 }
+
+func aesBlock(dst, src0, src1 []byte) {
+	bytesNoSIMD(dst, src0, src1)
+}
