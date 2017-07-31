@@ -186,7 +186,7 @@ func benchmarkBytesAESOnce(b *testing.B) {
 func BenchmarkBytesx16B(b *testing.B) {
 	benchmarkBytes(b, 16)
 }
-func BenchmarkBytesDx32B(b *testing.B) {
+func BenchmarkBytesx32B(b *testing.B) {
 	benchmarkBytes(b, 32)
 }
 func BenchmarkBytesx1K(b *testing.B) {
