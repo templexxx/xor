@@ -46,6 +46,6 @@ func BytesSrc1(dst, src0, src1 []byte) {
 
 // all slice's length must be equal && != 0
 // len(src) must >= 2
-func XorMatrix(dst []byte, src [][]byte) {
+func Matrix(dst []byte, src [][]byte) {
 	xorMatrix(dst, src)
 }
