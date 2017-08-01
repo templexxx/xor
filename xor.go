@@ -11,8 +11,6 @@ const (
 
 var extension = none
 
-// all slice's length != 0
-
 // chose the shortest one as xor size
 // it's better to use it for big data ( > 64bytes )
 func Bytes(dst, src0, src1 []byte) {
@@ -46,7 +44,7 @@ func BytesSrc1(dst, src0, src1 []byte) {
 	xorSrc1(dst, src0, src1)
 }
 
-// all slice's length must be equal
+// all slice's length must be equal && != 0
 // len(src) must >= 2
 func XorMatrix(dst []byte, src [][]byte) {
 	xorMatrix(dst, src)

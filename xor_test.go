@@ -54,6 +54,29 @@ func verifyBytes(size int) bool {
 	return bytes.Equal(expect, dst)
 }
 
+func TestVerifyBytesSrc1(t *testing.T) {
+	for i := 1; i <= unitSize+16+2; i++ {
+		if !verifyBytesSrc1(i) {
+			t.Fatal("xor fault ", "size:", i)
+		}
+	}
+}
+func verifyBytesSrc1(size int) bool {
+	dst := make([]byte, size)
+	src0 := make([]byte, size)
+	src1 := make([]byte, size)
+	expect := make([]byte, size)
+	rand.Seed(7)
+	fillRandom(src0)
+	rand.Seed(8)
+	fillRandom(src1)
+	for i := 0; i < size; i++ {
+		expect[i] = src0[i] ^ src1[i]
+	}
+	xorSrc0(dst, src0, src1)
+	return bytes.Equal(expect, dst)
+}
+
 func TestVerifyMatrixNoSIMD(t *testing.T) {
 	for i := 1; i <= unitSize+16+2; i++ {
 		if !verifyMatrixNoSIMD(i) {
@@ -146,11 +169,11 @@ func benchmarkBytesMini(b *testing.B, size int) {
 	fillRandom(src0)
 	rand.Seed(int64(1))
 	fillRandom(src1)
-	bytesSrc1(dst, src0, src1)
+	BytesSrc1(dst, src0, src1)
 	b.SetBytes(int64(size) * 2)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		bytesSrc1(dst, src0, src1)
+		BytesSrc1(dst, src0, src1)
 	}
 }
 

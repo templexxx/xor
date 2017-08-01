@@ -13,14 +13,6 @@ func getEXT() {
 	return
 }
 
-func xorSrc0(dst, src0, src1 []byte) {
-	bytesSSE2mini(dst, src0, src1, len(src0))
-}
-
-func xorSrc1(dst, src0, src1 []byte) {
-	bytesSSE2mini(dst, src0, src1, len(src1))
-}
-
 func xorBytes(dst, src0, src1 []byte, size int) {
 	switch extension {
 	case avx2:
@@ -82,6 +74,12 @@ func matrixSSE2(dst []byte, src [][]byte) {
 		matrixSSE2small(dst, src)
 	}
 }
+
+// go:noescape
+func xorSrc0(dst, src0, src1 []byte)
+
+// go:noescape
+func xorSrc1(dst, src0, src1 []byte)
 
 //go:noescape
 func bytesAVX2mini(dst, src0, src1 []byte, size int)
