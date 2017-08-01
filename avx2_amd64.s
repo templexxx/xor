@@ -24,12 +24,12 @@
 #define TMP5 R13
 #define TMP6 R14
 
-// func bytesAVX2mini(dst, src0, src1 []byte)
+// func bytesAVX2mini(dst, src0, src1 []byte, size int)
 TEXT ·bytesAVX2mini(SB), NOSPLIT, $0
 	MOVQ  dst+0(FP), DST
 	MOVQ  src0+24(FP), SRC0
 	MOVQ  src1+48(FP), SRC1
-	MOVQ  len+8(FP), LEN
+	MOVQ  len+72(FP), LEN
 	TESTQ $31, LEN
 	JNZ   not_aligned
 
@@ -80,12 +80,12 @@ loop_8b:
 ret:
 	RET
 
-// func bytesAVX2small(dst, src0, src1 []byte)
+// func bytesAVX2small(dst, src0, src1 []byte, size int)
 TEXT ·bytesAVX2small(SB), NOSPLIT, $0
 	MOVQ  dst+0(FP), DST
 	MOVQ  src0+24(FP), SRC0
 	MOVQ  src1+48(FP), SRC1
-	MOVQ  len+8(FP), LEN
+	MOVQ  len+72(FP), LEN
 	TESTQ $127, LEN
 	JNZ   not_aligned
 
@@ -146,12 +146,12 @@ loop_8b:
 ret:
 	RET
 
-// func bytesAVX2big(dst, src0, src1 []byte)
+// func bytesAVX2big(dst, src0, src1 []byte, size int)
 TEXT ·bytesAVX2big(SB), NOSPLIT, $0
 	MOVQ  dst+0(FP), DST
 	MOVQ  src0+24(FP), SRC0
 	MOVQ  src1+48(FP), SRC1
-	MOVQ  len+8(FP), LEN
+	MOVQ  len+72(FP), LEN
 	TESTQ $127, LEN
 	JNZ   not_aligned
 

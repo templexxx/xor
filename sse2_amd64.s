@@ -24,23 +24,12 @@
 #define TMP5 R13
 #define TMP6 R14
 
-// func bytesSSE2once(dst, src0, src1 []byte)
-TEXT ·bytesSSE2once(SB), NOSPLIT, $0
-	MOVQ  dst+0(FP), DST
-	MOVQ  src0+24(FP), SRC0
-	MOVQ  src1+48(FP), SRC1
-	MOVOU (SRC0), X0
-	MOVOU (SRC1), X4
-	PXOR X4, X0
-	MOVOU X0, (DST)
-	RET
-
-// func bytesSSE2mini(dst, src0, src1 []byte)
+// func bytesSSE2mini(dst, src0, src1 []byte, size int)
 TEXT ·bytesSSE2mini(SB), NOSPLIT, $0
 	MOVQ  dst+0(FP), DST
 	MOVQ  src0+24(FP), SRC0
 	MOVQ  src1+48(FP), SRC1
-	MOVQ  len+8(FP), LEN
+	MOVQ  len+72(FP), LEN
 	TESTQ $15, LEN
 	JNZ   not_aligned
 
@@ -92,12 +81,12 @@ loop_8b:
 ret:
 	RET
 
-// func bytesSSE2small(dst, src0, src1 []byte)
+// func bytesSSE2small(dst, src0, src1 []byte, size int)
 TEXT ·bytesSSE2small(SB), NOSPLIT, $0
 	MOVQ  dst+0(FP), DST
 	MOVQ  src0+24(FP), SRC0
 	MOVQ  src1+48(FP), SRC1
-	MOVQ  len+8(FP), LEN
+	MOVQ  len+72(FP), LEN
 	TESTQ $63, LEN
 	JNZ   not_aligned
 
@@ -165,12 +154,12 @@ loop_8b:
 ret:
 	RET
 
-// func bytesSSE2big(dst, src0, src1 []byte)
+// func bytesSSE2big(dst, src0, src1 []byte, size int)
 TEXT ·bytesSSE2big(SB), NOSPLIT, $0
 	MOVQ  dst+0(FP), DST
 	MOVQ  src0+24(FP), SRC0
 	MOVQ  src1+48(FP), SRC1
-	MOVQ  len+8(FP), LEN
+	MOVQ  len+72(FP), LEN
 	TESTQ $63, LEN
 	JNZ   not_aligned
 

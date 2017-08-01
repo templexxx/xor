@@ -26,27 +26,8 @@ func verifyBytesNoSIMD(size int) bool {
 	for i := 0; i < size; i++ {
 		expect[i] = src0[i] ^ src1[i]
 	}
-	xorBytes(dst, src0, src1)
+	xorBytes(dst, src0, src1, size)
 	return bytes.Equal(expect, dst)
-}
-
-func TestVerifyXorAESblock(t *testing.T) {
-	size := 16
-	dst := make([]byte, size)
-	src0 := make([]byte, size)
-	src1 := make([]byte, size)
-	expect := make([]byte, size)
-	rand.Seed(7)
-	fillRandom(src0)
-	rand.Seed(8)
-	fillRandom(src1)
-	for i := 0; i < size; i++ {
-		expect[i] = src0[i] ^ src1[i]
-	}
-	XorAESBlock(dst, src0, src1)
-	if !bytes.Equal(expect, dst) {
-		t.Fatal("xor AES block fault ")
-	}
 }
 
 func TestVerifyBytes(t *testing.T) {
@@ -69,7 +50,7 @@ func verifyBytes(size int) bool {
 	for i := 0; i < size; i++ {
 		expect[i] = src0[i] ^ src1[i]
 	}
-	xorBytes(dst, src0, src1)
+	xorBytes(dst, src0, src1, size)
 	return bytes.Equal(expect, dst)
 }
 
@@ -133,12 +114,46 @@ func verifyMatrix(size int) bool {
 	return bytes.Equal(expect, dst)
 }
 
+func BenchmarkBytesNoSIMDx12B(b *testing.B) {
+	benchmarkBytesNoSIMD(b, 12)
+}
+func BenchmarkBytesx12B(b *testing.B) {
+	benchmarkBytesMini(b, 12)
+}
 func BenchmarkBytesNoSIMDx16B(b *testing.B) {
 	benchmarkBytesNoSIMD(b, 16)
+}
+func BenchmarkBytesx16B(b *testing.B) {
+	benchmarkBytesMini(b, 16)
+}
+func BenchmarkBytesNoSIMDx24B(b *testing.B) {
+	benchmarkBytesNoSIMD(b, 24)
+}
+func BenchmarkBytesx24B(b *testing.B) {
+	benchmarkBytesMini(b, 24)
 }
 func BenchmarkBytesNoSIMDx32B(b *testing.B) {
 	benchmarkBytesNoSIMD(b, 32)
 }
+func BenchmarkBytesx32B(b *testing.B) {
+	benchmarkBytesMini(b, 32)
+}
+func benchmarkBytesMini(b *testing.B, size int) {
+	src0 := make([]byte, size)
+	src1 := make([]byte, size)
+	dst := make([]byte, size)
+	rand.Seed(int64(0))
+	fillRandom(src0)
+	rand.Seed(int64(1))
+	fillRandom(src1)
+	bytesSrc1(dst, src0, src1)
+	b.SetBytes(int64(size) * 2)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		bytesSrc1(dst, src0, src1)
+	}
+}
+
 func BenchmarkBytesNoSIMDx1K(b *testing.B) {
 	benchmarkBytesNoSIMD(b, 1024)
 }
@@ -156,39 +171,14 @@ func benchmarkBytesNoSIMD(b *testing.B, size int) {
 	fillRandom(src1)
 	rand.Seed(int64(1))
 	fillRandom(src2)
-	bytesNoSIMD(dst, src1, src2)
+	bytesNoSIMD(dst, src1, src2, size)
 	b.SetBytes(int64(size) * 2)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		bytesNoSIMD(dst, src1, src2)
+		bytesNoSIMD(dst, src1, src2, size)
 	}
 }
 
-func BenchmarkBytesAESoncex16B(b *testing.B) {
-	benchmarkBytesAESOnce(b)
-}
-func benchmarkBytesAESOnce(b *testing.B) {
-	size := 16
-	src1 := make([]byte, size)
-	src2 := make([]byte, size)
-	dst := make([]byte, size)
-	rand.Seed(int64(0))
-	fillRandom(src1)
-	rand.Seed(int64(1))
-	fillRandom(src2)
-	XorAESBlock(dst, src1, src2)
-	b.SetBytes(int64(size) * 2)
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		XorAESBlock(dst, src1, src2)
-	}
-}
-func BenchmarkBytesx16B(b *testing.B) {
-	benchmarkBytes(b, 16)
-}
-func BenchmarkBytesx32B(b *testing.B) {
-	benchmarkBytes(b, 32)
-}
 func BenchmarkBytesx1K(b *testing.B) {
 	benchmarkBytes(b, 1024)
 }
@@ -217,11 +207,11 @@ func benchmarkBytes(b *testing.B, size int) {
 	fillRandom(src1)
 	rand.Seed(int64(1))
 	fillRandom(src2)
-	xorBytes(dst, src1, src2)
+	xorBytes(dst, src1, src2, size)
 	b.SetBytes(int64(size) * 2)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		xorBytes(dst, src1, src2)
+		xorBytes(dst, src1, src2, size)
 	}
 }
 

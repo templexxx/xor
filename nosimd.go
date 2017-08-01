@@ -13,21 +13,24 @@ const wordSize = int(unsafe.Sizeof(uintptr(0)))
 const supportsUnaligned = runtime.GOARCH == "386" || runtime.GOARCH == "amd64" || runtime.GOARCH == "ppc64" || runtime.GOARCH == "ppc64le" || runtime.GOARCH == "s390x"
 
 // xors the bytes in a and b. The destination is assumed to have enough space.
-func bytesNoSIMD(dst, a, b []byte) {
+func bytesNoSIMD(dst, a, b []byte, size int) {
 	if supportsUnaligned {
-		fastXORBytes(dst, a, b)
+		fastXORBytes(dst, a, b, size)
 	} else {
 		// TODO(hanwen): if (dst, a, b) have common alignment
 		// we could still try fastXORBytes. It is not clear
 		// how often this happens, and it's only worth it if
 		// the block encryption itself is hardware
 		// accelerated.
-		safeXORBytes(dst, a, b)
+		safeXORBytes(dst, a, b, size)
 	}
 }
 
+// split slice for cache-friendly
+const unitSize = 16 * 1024
+
 func matrixNoSIMD(dst []byte, src [][]byte) {
-	size := len(dst)
+	size := len(src[0])
 	start := 0
 	do := unitSize
 	for start < size {
@@ -44,16 +47,15 @@ func matrixNoSIMD(dst []byte, src [][]byte) {
 
 // split vect will improve performance with big data by reducing cache pollution
 func partNoSIMD(start, end int, dst []byte, src [][]byte) {
-	bytesNoSIMD(dst[start:end], src[0][start:end], src[1][start:end])
+	bytesNoSIMD(dst[start:end], src[0][start:end], src[1][start:end], end-start)
 	for i := 2; i < len(src); i++ {
-		bytesNoSIMD(dst[start:end], dst[start:end], src[i][start:end])
+		bytesNoSIMD(dst[start:end], dst[start:end], src[i][start:end], end-start)
 	}
 }
 
 // fastXORBytes xors in bulk. It only works on architectures that
 // support unaligned read/writes.
-func fastXORBytes(dst, a, b []byte) {
-	n := len(a)
+func fastXORBytes(dst, a, b []byte, n int) {
 	w := n / wordSize
 	if w > 0 {
 		wordBytes := w * wordSize
@@ -64,8 +66,7 @@ func fastXORBytes(dst, a, b []byte) {
 	}
 }
 
-func safeXORBytes(dst, a, b []byte) {
-	n := len(a)
+func safeXORBytes(dst, a, b []byte, n int) {
 	ex := n % 8
 	for i := 0; i < ex; i++ {
 		dst[i] = a[i] ^ b[i]
