@@ -140,25 +140,25 @@ func verifyMatrix(size int) bool {
 func BenchmarkBytesNoSIMDx12B(b *testing.B) {
 	benchmarkBytesNoSIMD(b, 12)
 }
-func BenchmarkBytesx12B(b *testing.B) {
+func BenchmarkBytes12B(b *testing.B) {
 	benchmarkBytesMini(b, 12)
 }
-func BenchmarkBytesNoSIMDx16B(b *testing.B) {
+func BenchmarkBytesNoSIMD16B(b *testing.B) {
 	benchmarkBytesNoSIMD(b, 16)
 }
-func BenchmarkBytesx16B(b *testing.B) {
+func BenchmarkBytes16B(b *testing.B) {
 	benchmarkBytesMini(b, 16)
 }
-func BenchmarkBytesNoSIMDx24B(b *testing.B) {
+func BenchmarkBytesNoSIMD24B(b *testing.B) {
 	benchmarkBytesNoSIMD(b, 24)
 }
-func BenchmarkBytesx24B(b *testing.B) {
+func BenchmarkBytes24B(b *testing.B) {
 	benchmarkBytesMini(b, 24)
 }
-func BenchmarkBytesNoSIMDx32B(b *testing.B) {
+func BenchmarkBytesNoSIMD32B(b *testing.B) {
 	benchmarkBytesNoSIMD(b, 32)
 }
-func BenchmarkBytesx32B(b *testing.B) {
+func BenchmarkBytes32B(b *testing.B) {
 	benchmarkBytesMini(b, 32)
 }
 func benchmarkBytesMini(b *testing.B, size int) {
@@ -177,13 +177,13 @@ func benchmarkBytesMini(b *testing.B, size int) {
 	}
 }
 
-func BenchmarkBytesNoSIMDx1K(b *testing.B) {
+func BenchmarkBytesNoSIMD1K(b *testing.B) {
 	benchmarkBytesNoSIMD(b, 1024)
 }
-func BenchmarkBytesNoSIMDx16K(b *testing.B) {
+func BenchmarkBytesNoSIMD16K(b *testing.B) {
 	benchmarkBytesNoSIMD(b, 16*1024)
 }
-func BenchmarkBytesNoSIMDx16M(b *testing.B) {
+func BenchmarkBytesNoSIMD16M(b *testing.B) {
 	benchmarkBytesNoSIMD(b, 16*1024*1024)
 }
 func benchmarkBytesNoSIMD(b *testing.B, size int) {
@@ -202,13 +202,13 @@ func benchmarkBytesNoSIMD(b *testing.B, size int) {
 	}
 }
 
-func BenchmarkBytesx1K(b *testing.B) {
+func BenchmarkBytes1K(b *testing.B) {
 	benchmarkBytes(b, 1024)
 }
-func BenchmarkBytesx16K(b *testing.B) {
+func BenchmarkBytes16K(b *testing.B) {
 	benchmarkBytes(b, 16*1024)
 }
-func BenchmarkBytesx16M(b *testing.B) {
+func BenchmarkBytes16M(b *testing.B) {
 	benchmarkBytes(b, 16*1024*1024)
 }
 

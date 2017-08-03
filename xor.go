@@ -11,7 +11,7 @@ const (
 
 var extension = none
 
-// chose the shortest one as xor size
+// Bytes : chose the shortest one as xor size
 // it's better to use it for big data ( > 64bytes )
 func Bytes(dst, src0, src1 []byte) {
 	size := len(dst)
@@ -24,27 +24,25 @@ func Bytes(dst, src0, src1 []byte) {
 	xorBytes(dst, src0, src1, size)
 }
 
-// all slice's length must be equal
+// BytesSameLen : all slice's length must be equal
 // cut size branch, save time for small data
 func BytesSameLen(dst, src0, src1 []byte) {
 	xorSrc1(dst, src0, src1)
 }
 
-// xor for small data ( <= 64bytes)
-// it will use SSE2 in amd64
-// length: src1 >= src0, dst >= src0
+// BytesSrc0 : src1 >= src0, dst >= src0
 // xor src0's len bytes
 func BytesSrc0(dst, src0, src1 []byte) {
 	xorSrc0(dst, src0, src1)
 }
 
-// length: src0 >= src1, dst >= src1
+// BytesSrc1 : src0 >= src1, dst >= src1
 // xor src1's len bytes
 func BytesSrc1(dst, src0, src1 []byte) {
 	xorSrc1(dst, src0, src1)
 }
 
-// all slice's length must be equal && != 0
+// Matrix : all slice's length must be equal && != 0
 // len(src) must >= 2
 func Matrix(dst []byte, src [][]byte) {
 	xorMatrix(dst, src)

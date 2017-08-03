@@ -12,7 +12,7 @@ import (
 const wordSize = int(unsafe.Sizeof(uintptr(0)))
 const supportsUnaligned = runtime.GOARCH == "386" || runtime.GOARCH == "amd64" || runtime.GOARCH == "ppc64" || runtime.GOARCH == "ppc64le" || runtime.GOARCH == "s390x"
 
-// xors the bytes in a and b. The destination is assumed to have enough space.
+// xor the bytes in a and b. The destination is assumed to have enough space.
 func bytesNoSIMD(dst, a, b []byte, size int) {
 	if supportsUnaligned {
 		fastXORBytes(dst, a, b, size)
@@ -53,7 +53,7 @@ func partNoSIMD(start, end int, dst []byte, src [][]byte) {
 	}
 }
 
-// fastXORBytes xors in bulk. It only works on architectures that
+// fastXORBytes xor in bulk. It only works on architectures that
 // support unaligned read/writes.
 func fastXORBytes(dst, a, b []byte, n int) {
 	w := n / wordSize
@@ -61,7 +61,7 @@ func fastXORBytes(dst, a, b []byte, n int) {
 		wordBytes := w * wordSize
 		fastXORWords(dst[:wordBytes], a[:wordBytes], b[:wordBytes])
 	}
-	for i := (n - n%wordSize); i < n; i++ {
+	for i := n - n%wordSize; i < n; i++ {
 		dst[i] = a[i] ^ b[i]
 	}
 }
