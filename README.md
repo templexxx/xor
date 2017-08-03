@@ -2,14 +2,12 @@
 
 XOR code engine in pure Go
 
-more than 14GB/S per core
+more than 10GB/S per core
 
 ## Introduction:
 
-1. ARCH: amd64, arm64
-2. Go version:
-3. Use SIMD for speeding up ( only supported in amd64 with avx2 or sse2)
-4. ...
+1. Use SIMD (SSE2 or AVX2) for speeding up
+2. ...
 
 ## Installation
 To get the package use the standard:
@@ -17,20 +15,10 @@ To get the package use the standard:
 go get github.com/templexxx/xor
 ```
 
-## Usage
+## Documentation
 
-### API
+See the associated [GoDoc](http://godoc.org/github.com/templexxx/xor)
 
-**only two:**
-
-1.
-```
-func Matrix(dst []byte, src [][]byte) (err error)
-```
-2.
-```
-func Bytes(dst, src1, src2 []byte) (err error)
-```
 
 ## Performance
 
