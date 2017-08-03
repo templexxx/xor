@@ -5,7 +5,7 @@ const (
 	none = iota
 	avx2
 	// first introduced by Intel with the initial version of the Pentium 4 in 2001
-	// so we can assume all amd64 has sse2
+	// so I think we can assume all amd64 has sse2
 	sse2
 )
 
@@ -27,7 +27,7 @@ func Bytes(dst, src0, src1 []byte) {
 // all slice's length must be equal
 // cut size branch, save time for small data
 func BytesSameLen(dst, src0, src1 []byte) {
-	xorBytes(dst, src0, src1, len(dst))
+	xorSrc1(dst, src0, src1)
 }
 
 // xor for small data ( <= 64bytes)

@@ -75,10 +75,10 @@ func matrixSSE2(dst []byte, src [][]byte) {
 	}
 }
 
-// go:noescape
+//go:noescape
 func xorSrc0(dst, src0, src1 []byte)
 
-// go:noescape
+//go:noescape
 func xorSrc1(dst, src0, src1 []byte)
 
 //go:noescape

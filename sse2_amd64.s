@@ -28,7 +28,7 @@
 TEXT ·xorSrc0(SB), NOSPLIT, $0
 	MOVQ  len+32(FP), LEN
 	CMPQ  LEN, $0
-	JE    ret
+	JLE    ret
 	MOVQ  dst+0(FP), DST
 	MOVQ  src0+24(FP), SRC0
 	MOVQ  src1+48(FP), SRC1
