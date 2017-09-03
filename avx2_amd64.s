@@ -45,6 +45,7 @@ loop32b:
 	ADDQ    $32, POS
 	CMPQ    LEN, POS
 	JNE     loop32b
+	VZEROUPPER
 	RET
 
 loop_1b:
@@ -113,6 +114,7 @@ loop128b:
 	ADDQ $128, POS
 	CMPQ LEN, POS
 	JNE  loop128b
+	VZEROUPPER
 	RET
 
 loop_1b:
@@ -182,6 +184,7 @@ loop128b:
 	CMPQ LEN, POS
 	JNE  loop128b
 	SFENCE
+	VZEROUPPER
 	RET
 
 loop_1b:
@@ -265,6 +268,7 @@ next_vect:
 	ADDQ $128, POS
 	CMPQ LEN, POS
 	JNE  loop128b
+	VZEROUPPER
 	RET
 
 loop_1b:
@@ -371,6 +375,7 @@ next_vect:
 	ADDQ $128, POS
 	CMPQ LEN, POS
 	JNE  loop128b
+	VZEROUPPER
 	RET
 
 loop_1b:
