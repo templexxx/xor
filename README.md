@@ -42,3 +42,7 @@ speed = ( shards * size ) / cost
 |5|1400B|58054.89|
 |5|16KB|50161.19|
 |5| 16MB|12750.41|
+
+## Who is using this?
+
+1. https://github.com/xtaci/kcp-go -- A Production-Grade Reliable-UDP Library for golang
