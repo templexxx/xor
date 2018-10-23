@@ -4,6 +4,8 @@ XOR code engine in pure Go
 
 more than 10GB/S per core
 
+see: https://github.com/templexxx/xorsimd
+
 ## Introduction:
 
 1. Use SIMD (SSE2 or AVX2) for speeding up
